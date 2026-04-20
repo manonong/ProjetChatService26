@@ -49,8 +49,7 @@ public class ServerMsg {
 		nextUserId = new AtomicInteger(1);
 		nextGroupId = new AtomicInteger(-1);
 		sp = new ServerPacketProcessor(this);
-		executor = Executors.newWorkStealingPool();
-	}
+		executor = Executors.newCachedThreadPool();	} //le nombre clients réactif est limité par le nb de processeurs sur certaines machines
 	
 	public GroupMsg createGroup(int ownerId) {
 		UserMsg owner = users.get(ownerId);
@@ -128,7 +127,7 @@ public class ServerMsg {
 				// une pour envoyer des messages au client
 				// les deux boucles sont gérées au niveau de la classe UserMsg
 				UserMsg x = users.get(userId);
-				if (x.open(s)) {
+				if (x!= null && x.open(s)) { //gestion du cas où l'id d'un client qui se connecte est inconnu
 					LOG.info(userId + " connected");
 					// lancement boucle de reception
 					executor.submit(() -> x.receiveLoop());
