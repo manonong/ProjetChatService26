@@ -1,0 +1,11 @@
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/client/ClientMsg.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/client/ConnectionListener.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/client/MessageListener.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/common/ExempleConnexionDB.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/common/Packet.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/server/GroupMsg.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/server/PacketProcessor.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/server/ServerException.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/server/ServerMsg.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/server/ServerPacketProcessor.java
+/Users/jingyu/Desktop/JavaProject/2024ProjetChatService/src/main/java/fr/uga/miashs/dciss/chatservice/server/UserMsg.java
