@@ -218,22 +218,181 @@ public class ClientMsg {
 		}
 		
 		
-
+		//faut demander si il veut créer un groupe
 		Scanner sc = new Scanner(System.in);
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
 			try {
-				System.out.println("A qui voulez vous écrire ? ");
-				int dest = Integer.parseInt(sc.nextLine());
+				System.out.println("Que souhaitez vous faire ?");
+				System.out.println("Tapez 1 pour écrire un message");
+				System.out.println("Tapez 2 pour gérer un groupe");
+				System.out.println("Tapez 3 pour gérer les contacts");
+				System.out.println("Tapez 4 pour gérer votre compte");
+				int action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
 
-				System.out.println("Votre message ? ");
-				lu = sc.nextLine();
-				c.sendPacket(dest, lu.getBytes());
+				if(action==1){ //écrire un message
+					try {
+						System.out.println("A qui voulez vous écrire ? ");
+						int dest = Integer.parseInt(sc.nextLine());
+						//TODO, faire choisir parmi les contacts ou mettre l'id
+
+						System.out.println("Votre message ? ");
+						lu = sc.nextLine();
+						c.sendPacket(dest, lu.getBytes());
+						
+					} catch (InputMismatchException | NumberFormatException e) {
+						System.out.println("Mauvais format");
+					}
+				}
+
+				if (action==2) { //gérer un groupe
+					try {
+						System.out.println("Tapez 1 pour créer un groupe");
+						System.out.println("Tapez 2 pour quitter un groupe");				
+						System.out.println("Tapez 3 pour gérer un groupe existant dont vous être propriétaire");
+						action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+
+						if (action==1) { //créer un groupe
+							try {
+								System.out.println("Nom du groupe ?");
+								String nomGroupe = sc.nextLine();
+								System.out.println("Combien de personnes voulez-vous ajouter ?");
+								int nbrMembre = Integer.parseInt(sc.nextLine());
+								if(nbrMembre<=0){throw new IllegalArgumentException("Doit être positif");}
+					
+
+								System.out.println("Qui voulez-vous ajouter :");
+								//avec les id
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+							
+						}
+
+						if (action==2) {//quitter un groupe
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+							
+						}				
+						
+						if (action==3) {//gérer un groupe existant avec les droits owner
+							try {
+								//1ere étape choisir le groupe, TODO puis :
+
+								System.out.println("Tapez 1 pour ajouter un utilisateur");
+								System.out.println("Tapez 2 pour supprimer un utilisateur");				
+								System.out.println("Tapez 3 pour modifier le nom du groupe");
+								System.out.println("Tapez 4 pour transferer le droit de propriété du groupe");
+								System.out.println("Tapez 5 pour supprimer le groupe");
+								action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+
+								if (action==1) {//ajouter un utilisateur
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+								
+								if (action==2) {//supprimer un utilisateur
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+								if (action==3) {//modifier nom du groupe
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+								if (action==4) {//transferer le droit de propriété du groupe
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+								if (action==5) {//supprimer le groupe
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}
+
+						
+					} catch (InputMismatchException | NumberFormatException e) {
+				System.out.println("Mauvais format");
+					}
+
+					if (action==3) {//gestion des contacts
+							System.out.println("Tapez 1 pour ajouter un contact");
+							System.out.println("Tapez 2 pour supprimer un contact");				
+							System.out.println("Tapez 3 pour modifier le nom d'un contact");
+
+							action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+
+							if(action==1){ //ajouter un contact
+								try {
+									
+								} catch (Exception e) {
+									// TODO: handle exception
+								}
+							}
+
+							if(action==2){ //supprimer un contact
+								try {
+									
+								} catch (Exception e) {
+									// TODO: handle exception
+								}
+							}	
+							
+							if(action==3){ //modifier un contact
+								try {
+									
+								} catch (Exception e) {
+									// TODO: handle exception
+								}
+							}
+
+						
+					}
+
+					if(action==4){//gestion utilisateur, pour le moment que modifier son nom
+						try {
+							
+						} catch (Exception e) {
+							// TODO: handle exception
+						}
+					}
+					
+				}
+
+
 			} catch (InputMismatchException | NumberFormatException e) {
 				System.out.println("Mauvais format");
 			}
 
 		}
+
+		//permet à un user de créer un groupe
+		//TODO 
 
 		/*
 		 * int id =1+(c.getIdentifier()-1) % 2; System.out.println("send to "+id);
