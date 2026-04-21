@@ -14,24 +14,27 @@ package fr.uga.miashs.dciss.chatservice.server;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 
-import fr.uga.miashs.dciss.chatservice.common.Packet;
+import fr.uga.miashs.dciss.chatservice.common.Packet; //données à envoyer
 
 public class GroupMsg implements PacketProcessor {
 
-	private int groupId;
-	private UserMsg owner;
-	private Set<UserMsg> members;
+	private int groupId; //id du groupe, négatif
+	private UserMsg owner; //proprietaire du groupe, càd celui qui le crée
+	private Set<UserMsg> members; //ensemble des membres du groupe
 	
-	public GroupMsg(int groupId, UserMsg owner) {
-		if (groupId>-1) throw new IllegalArgumentException("id must not be less than 0");
+	public GroupMsg(int groupId, UserMsg owner) { //un groupe est définit par son id et son proprietaire
+		if (groupId>-1) throw new IllegalArgumentException("id must be less than 0");
 		if (owner==null) throw new IllegalArgumentException("owner cannot be null");
+		//si l'id est négatif ou si le proprietaire n'existe pas, lance une exception
 		this.groupId=groupId;
 		this.owner=owner;
 		members=Collections.synchronizedSet(new HashSet<>());
-		addMember(owner);
+		//permet d'utiliser un thread plusieurs fois en même temps
+		//thread : une séquence d'instructions pouvant être exécutées indépendamment au sein d'un programme
+		addMember(owner); //ajoute le proprietaire au groupe
 	}
 	
-	public int getId() {
+	public int getId() { //getter
 		return groupId;
 	}
 	
@@ -41,8 +44,9 @@ public class GroupMsg implements PacketProcessor {
 	 * @param s
 	 * @return
 	 */
-	public boolean addMember(UserMsg s) {
+	public boolean addMember(UserMsg s) { //s est un user
 		return s!=null && members.add(s) && s.getGroups().add(this);
+		//retourne vrai si l'user existe, ajouter l'user dans le groupe et met le groupe dans le repertoire de l'user
 	}
 	
 	/**
@@ -52,21 +56,23 @@ public class GroupMsg implements PacketProcessor {
 	 * @return
 	 */
 	public boolean removeMember(UserMsg s) {
-		if (s.equals(owner)) return false;
-		if (members.remove(s)) {
-			s.removeGroup(this);
-			return true;
+		if (s.equals(owner)) return false; //si l'user est le owner on ne peut pas le retirer
+		if (members.remove(s)) { //on retire le membre
+			s.removeGroup(this); //on retire le groupe du repertoire de l'user
+			return true;//retourne true pour dire que la suppression est effective 
 		}
-		return false;
+		return false;//faux si s n'est pas présent dans members
 	}
 	
 	@Override
 	public void process(Packet p) {
 		// send packet to members except the sender.
 		members.stream().filter(m->m.getId()!=p.srcId).forEach( m -> m.process(p));
+		//créer un flux, p.srcId c'est l'expéditeur alors on ne lui envoie pas, puis envoie à chaque membre avec le foreach
 	}
 	
 	// to be used carrefully, because it does not update birectional relationship in case of addition or removal.
+	//setter, mais faire attention parce que update pas la relation complete
 	protected Set<UserMsg> getMembers() {
 		return members;
 	}
@@ -76,6 +82,7 @@ public class GroupMsg implements PacketProcessor {
 	 */
 	public void beforeDelete() {
 		members.forEach(m->m.getGroups().remove(this));
+		//avant de supprimer un groupe, permet de retirer le groupe du répertoire des membres
 	}
 
 }
