@@ -35,11 +35,11 @@ public class ServerMsg {
 	private Map<Integer, UserMsg> users;
 	private Map<Integer, GroupMsg> groups;
 	
-	
-	
 	// séquences pour générer les identifiant d'utilisateurs et de groupe
 	private AtomicInteger nextUserId;
 	private AtomicInteger nextGroupId;
+
+
 
 	public ServerMsg(int port) throws IOException {
 		serverSock = new ServerSocket(port);
@@ -79,59 +79,91 @@ public class ServerMsg {
 		return users.get(userId);
 	}
 	
+	// À implémenter — restaure un UserMsg depuis la sérialisation
+	private UserMsg chargerUserDepuisSauvegarde(int userId) {
+   	 	// TODO : désérialiser depuis la base de données SQL
+    	return null;
+	}
 
+	// Methode utilisée pour savoir quoi faire d'un paquet
+	// reçu par le serveur
+	public void processPacket(Packet p) {
+		PacketProcessor pp = null;
+		if (p.destId < 0) { //message de groupe
+			// can be send only if sender is member
+			UserMsg sender = users.get(p.srcId);
+			GroupMsg g = groups.get(p.destId);
+			if (g.getMembers().contains(sender)) pp=g;
+		}
+		else if (p.destId > 0) { // message entre utilisateurs
+			 pp = users.get(p.destId);
+		}
+		else { // message de gestion pour le serveur
+			pp=sp;
+		}
+		
+		if (pp != null) {
+			pp.process(p);
+		}
+	}
 
-// Methode utilisée pour savoir quoi faire d'un paquet
-    // reçu par le serveur
-    public void processPacket(Packet p) {
-        PacketProcessor pp = null;
-        if (p.destId < 0) { //message de groupe
-            // can be send only if sender is member
-            UserMsg sender = users.get(p.srcId);
-            GroupMsg g = groups.get(p.destId);
-            if (g.getMembers().contains(sender)) pp=g;
-        }
-        else if (p.destId > 0) { // message entre utilisateurs
-             pp = users.get(p.destId);
-        }
-        else { // message de gestion pour le serveur
-
-
-
-
+	/**
+	 * 
+	 */
 	public void start() {
 		started = true;
 		while (started) {
 			try {
-				// le serveur attend une connexion d'un client
+				// Le serveur attend une connexion d'un client :
 				Socket s = serverSock.accept();
-
+				// Prépare les canaux de d'entrée et de sortie :
 				DataInputStream dis = new DataInputStream(s.getInputStream());
 				DataOutputStream dos = new DataOutputStream(s.getOutputStream());
 
-				// lit l'identifiant du client
+				//*** LECTURE DE L'ID *** --lit l'identifiant du client
 				int userId = dis.readInt();
-				//si 0 alors il faut créer un nouvel utilisateur et
-				// envoyer l'identifiant au client
-				if (userId == 0) {
+
+				//*** GESTION DES ID *** --là où on galère
+				if (userId == 0) { 
+					// *** NOUVEAU CLIENT ***
+    				// id non défini (0) -- on crée un nouvel utilisateur
 					userId = nextUserId.getAndIncrement();
 					dos.writeInt(userId);
 					dos.flush();
 					users.put(userId, new UserMsg(userId, this));
 				}
-				// si l'identifiant existe ou est nouveau alors 
-				// deux "taches"/boucles  sont lancées en parralèle
-				// une pour recevoir les messages du client, 
-				// une pour envoyer des messages au client
-				// les deux boucles sont gérées au niveau de la classe UserMsg
+
 				UserMsg x = users.get(userId);
-				if (x!= null && x.open(s)) { //gestion du cas où l'id d'un client qui se connecte est inconnu
+					// *** CLIENT CONNU ***
+					// si x != null ici -- l'utilisateur est déjà en mémoire, reconnexion directe
+
+					//*** CLIENT CONNU MAIS ABSENT DE LA MEMOIRE *** --vérification de si l'utilisateur est en mémoire (SQL) 
+					// on tente de le restaurer depuis la sérialisation
+				if (x == null) {
+    				x = chargerUserDepuisSauvegarde(userId); 
+    				if (x != null) {	
+					//Si avec la restauration on a retrouvé l'utilisateur : on met à jour la HashMap (clé, valeur)
+        				users.put(userId, x);
+    				}
+				}
+
+				final UserMsg y = x;	
+				//!!! *** On est obligé de faire car on utilise des fonctions anonymes par la suite ***
+				// et ça fout la merde sinon x/
+
+				if (y!= null && x.open(s)) {
+					// *** CONNEXION ETABLIE *** (nouveau, connu ou restauré)
 					LOG.info(userId + " connected");
-					// lancement boucle de reception
-					executor.submit(() -> x.receiveLoop());
-					// lancement boucle d'envoi
-					executor.submit(() -> x.sendLoop());
-				} else { // si l'idenfiant est inconnu, on ferme la connexion
+					executor.submit(() -> y.receiveLoop());		// lancement boucle de reception --recevoir les messages
+					executor.submit(() -> y.sendLoop());		// lancement boucle d'envoi --envoyer des messages
+				
+					// si l'identifiant existe ou est nouveau alors deux "taches"/boucles sont lancées en parrallèle :
+					// une pour recevoir les messages du client, 
+					// une pour envoyer des messages au client
+					// les deux boucles sont gérées au niveau de la classe UserMsg
+
+
+				} else { 	// *** EJECTION *** -- id invalide (MÉCHANT PAS BEAU essaye de s'infiltrer en testant de id au pif) ou restauration échouée
 					s.close();
 				}
 
