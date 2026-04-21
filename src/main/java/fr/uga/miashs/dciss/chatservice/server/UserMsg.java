@@ -67,6 +67,7 @@ public class UserMsg implements PacketProcessor{
 	}
 	
 	
+
 	/*
 	 * METHODS FOR MANAING THE CONNECTION
 	 */
@@ -131,7 +132,6 @@ public class UserMsg implements PacketProcessor{
 				dos.writeInt(p.data.length);
 				dos.write(p.data);
 				dos.flush();
-				
 			}
 		} catch (IOException e) {
 			// remet le paquet dans la file si pb de transmission (connexion terminée)

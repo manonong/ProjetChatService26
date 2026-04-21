@@ -129,7 +129,7 @@ public class ClientMsg {
 			if (res.next()) return res.getInt(1);
 
     	} catch (SQLException e) {
-			// TODO Auto-generated catch block
+			// TODO chargerIdLocal exception
         	e.printStackTrace();
     	}
 			return 0;
@@ -137,7 +137,7 @@ public class ClientMsg {
 
 	private void sauvegarderIdLocal(int id){
     	try {
-		Connection cnx = DriverManager.getConnection("jdbc:sqlite:client.db")
+		Connection cnx = DriverManager.getConnection("jdbc:sqlite:client.db");
         cnx.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS Session (userId INTEGER PRIMARY KEY)");
 
         PreparedStatement ps = cnx.prepareStatement("INSERT OR REPLACE INTO Session VALUES (?)");
@@ -145,7 +145,7 @@ public class ClientMsg {
         ps.executeUpdate();	// -- Mise en jour de la requête
 
     	} catch (SQLException e) {
-			// TODO Auto-generated catch block
+			// TODO sauvegarderIdLocal exception
         	e.printStackTrace();
     	}
 	}
