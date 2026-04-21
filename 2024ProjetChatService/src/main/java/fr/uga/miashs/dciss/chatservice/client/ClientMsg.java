@@ -199,9 +199,9 @@ public class ClientMsg {
 		});
 
 		c.startSession();
+		Thread.sleep(2000);
 		System.out.println("Vous êtes : " + c.getIdentifier());
 
-		// Thread.sleep(5000);
 
 		// l'utilisateur avec id 4 crée un grp avec 1 et 3 dedans (et lui meme)
 		if (c.getIdentifier() == 3) {
