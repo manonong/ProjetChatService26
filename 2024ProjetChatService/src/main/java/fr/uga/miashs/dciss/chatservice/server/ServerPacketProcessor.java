@@ -41,8 +41,11 @@ public class ServerPacketProcessor implements PacketProcessor {
 			if (g == null) {
 				System.out.println("GROUP NOT FOUND");
 			}
-			if (g != null) {
-				g.removeMember(u);
+			if (g != null && u != null) {
+				boolean removed = g.removeMember(u);
+				if (removed) {
+					server.deleteMemberInDb(groupId, userId);
+				}
 			}
 		} else {
 			LOG.warning("Server message of type=" + type + " not handled by procesor");
@@ -52,9 +55,26 @@ public class ServerPacketProcessor implements PacketProcessor {
 	public void createGroup(int ownerId, ByteBuffer data) {
 		int nb = data.getInt();
 		GroupMsg g = server.createGroup(ownerId);
+
 		for (int i = 0; i < nb; i++) {
-			g.addMember(server.getUser(data.getInt()));
+			int userId = data.getInt();
+			UserMsg u = server.getUser(userId);
+
+			if (u != null) {
+				boolean added = g.addMember(u);
+				if (added) {
+					server.insertMemberInDb(g.getId(), u.getId());
+				}
+			} else {
+				System.out.println("USER " + userId + " NOT FOUND");
+			}
 		}
+
+		System.out.println("FINAL MEMBERS:");
+		for (UserMsg u : g.getMembers()) {
+			System.out.println("user " + u.getId());
+		}
+		server.printDbMembers();
 	}
 
 }

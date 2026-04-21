@@ -11,12 +11,14 @@
 
 package fr.uga.miashs.dciss.chatservice.server;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 import fr.uga.miashs.dciss.chatservice.common.Packet;
 
-public class GroupMsg implements PacketProcessor {
+public class GroupMsg implements PacketProcessor, Serializable {
+	private static final long serialVersionUID = 1L;
 
 	private int groupId;
 	private UserMsg owner;

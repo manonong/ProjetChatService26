@@ -13,16 +13,15 @@ package fr.uga.miashs.dciss.chatservice.server;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.*;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
 import fr.uga.miashs.dciss.chatservice.common.Packet;
 
 import java.util.*;
 
-public class UserMsg implements PacketProcessor{
+public class UserMsg implements PacketProcessor, Serializable{
 	private final static Logger LOG = Logger.getLogger(UserMsg.class.getName());
-	
+	private static final long serialVersionUID = 1L;
 	private int userId;
 	private Set<GroupMsg> groups;
 	

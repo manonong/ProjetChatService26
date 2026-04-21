@@ -16,20 +16,29 @@ import java.net.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 import fr.uga.miashs.dciss.chatservice.common.Packet;
 
 import java.util.*;
+import java.io.IOException;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 
 public class ServerMsg {
 
 	private final static Logger LOG = Logger.getLogger(ServerMsg.class.getName());
 	public final static int SERVER_CLIENTID = 0;
-
+	private static final long serialVersionUID = 1L;
 	private transient ServerSocket serverSock;
 	private transient boolean started;
 	private transient ExecutorService executor;
 	private transient ServerPacketProcessor sp;
+	private Connection cnx;
 
 	// maps pour associer les id aux users et groupes
 	private Map<Integer, UserMsg> users;
@@ -39,6 +48,76 @@ public class ServerMsg {
 	private AtomicInteger nextUserId;
 	private AtomicInteger nextGroupId;
 
+	private void initDatabase() {
+		try {
+			cnx = DriverManager.getConnection("jdbc:derby:target/chatDB;create=true");
+
+			Statement stmt = cnx.createStatement();
+
+			try {
+				stmt.executeUpdate(
+						"CREATE TABLE Groups (" +
+								"groupId INT PRIMARY KEY, " +
+								"ownerId INT NOT NULL)");
+			} catch (SQLException e) {
+				// table already exists
+			}
+
+			try {
+				stmt.executeUpdate(
+						"CREATE TABLE GroupMembers (" +
+								"groupId INT NOT NULL, " +
+								"userId INT NOT NULL, " +
+								"PRIMARY KEY (groupId, userId))");
+			} catch (SQLException e) {
+				// table already exists
+			}
+
+			System.out.println("BDD initialisée : target/chatDB");
+		} catch (SQLException e) {
+			throw new ServerException("Erreur d'initialisation BDD", e);
+		}
+	}
+
+	public void insertGroupInDb(int groupId, int ownerId) {
+		try {
+			PreparedStatement pstmt = cnx.prepareStatement(
+					"INSERT INTO Groups (groupId, ownerId) VALUES (?, ?)");
+			pstmt.setInt(1, groupId);
+			pstmt.setInt(2, ownerId);
+			pstmt.executeUpdate();
+			pstmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur INSERT Groups", e);
+		}
+	}
+
+	public void insertMemberInDb(int groupId, int userId) {
+		try {
+			PreparedStatement pstmt = cnx.prepareStatement(
+					"INSERT INTO GroupMembers (groupId, userId) VALUES (?, ?)");
+			pstmt.setInt(1, groupId);
+			pstmt.setInt(2, userId);
+			pstmt.executeUpdate();
+			pstmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur INSERT GroupMembers", e);
+		}
+	}
+
+	public void deleteMemberInDb(int groupId, int userId) {
+		try {
+			PreparedStatement pstmt = cnx.prepareStatement(
+					"DELETE FROM GroupMembers WHERE groupId = ? AND userId = ?");
+			pstmt.setInt(1, groupId);
+			pstmt.setInt(2, userId);
+			pstmt.executeUpdate();
+			pstmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur DELETE GroupMembers", e);
+		}
+	}
+
 	public ServerMsg(int port) throws IOException {
 		serverSock = new ServerSocket(port);
 		started = false;
@@ -46,6 +125,8 @@ public class ServerMsg {
 		groups = new ConcurrentHashMap<>();
 		nextUserId = new AtomicInteger(1);
 		nextGroupId = new AtomicInteger(-1);
+		initDatabase();
+		System.out.println("DB CONNECTED");
 		sp = new ServerPacketProcessor(this);
 		executor = Executors.newWorkStealingPool();
 	}
@@ -57,6 +138,9 @@ public class ServerMsg {
 		int id = nextGroupId.getAndDecrement();
 		GroupMsg res = new GroupMsg(id, owner);
 		groups.put(id, res);
+		insertGroupInDb(id, ownerId);
+		insertMemberInDb(id, ownerId);
+		System.out.println("GROUPS ACTUELS = " + groups.keySet());
 		LOG.info("Group " + res.getId() + " created");
 		return res;
 	}
@@ -163,6 +247,20 @@ public class ServerMsg {
 	public static void main(String[] args) throws IOException {
 		ServerMsg s = new ServerMsg(1666);
 		s.start();
+	}
+		public void printDbMembers() {
+		try {
+			Statement stmt = cnx.createStatement();
+			var res = stmt.executeQuery("SELECT groupId, userId FROM GroupMembers ORDER BY groupId, userId");
+			System.out.println("=== BDD GroupMembers ===");
+			while (res.next()) {
+				System.out.println(res.getInt("groupId") + " -> " + res.getInt("userId"));
+			}
+			res.close();
+			stmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur SELECT GroupMembers", e);
+		}
 	}
 
 }
