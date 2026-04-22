@@ -24,11 +24,11 @@ public class ClientMsg {
 	private String serverAddress;
 	private int serverPort;
 
-	private Socket s;
-	private DataOutputStream dos;
-	private DataInputStream dis;
+	private Socket s;					// Socket de l'utlisateur (est null == jamais connecté OU session fermée)
+	private DataOutputStream dos;		//DOS est pour les flux SORTANT
+	private DataInputStream dis;		// DIS est pour les flux ENTRANT
 
-	private int identifier;
+	private int identifier;				//Identifiant de l'utlisateur (est 0 == jamais connecté)
 
 	public static final int TYPE_TEXT = 1;
 	public static final int TYPE_FILE = 2;
