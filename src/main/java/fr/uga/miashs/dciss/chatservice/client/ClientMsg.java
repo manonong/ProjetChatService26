@@ -11,7 +11,10 @@
 
 package fr.uga.miashs.dciss.chatservice.client;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.sql.Connection;
@@ -19,11 +22,12 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;	//new
 import java.sql.ResultSet;			//new
 import java.sql.SQLException;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.InputMismatchException;
+import java.util.List;
+import java.util.Scanner;
 
 import fr.uga.miashs.dciss.chatservice.common.Packet;
-import fr.uga.miashs.dciss.chatservice.server.GroupMsg;
 
 /**
  * Manages the connection to a ServerMsg. Method startSession() is used to
@@ -359,12 +363,25 @@ public class ClientMsg {
 
 						if (actionGroupe==2) {//quitter un groupe
 							try {
-								//voir les groupes dont l'user est membre, en selectionner un  
+								ByteArrayOutputStream bos = new ByteArrayOutputStream(); //on rajoute une place dans le buffer pour le groupe
+								DataOutputStream dos = new DataOutputStream(bos);								
+								//voir les groupes dont l'user est membre, en selectionner un 
 
+								dos.writeByte(2); 
 
-								
+								System.out.println("id du groupe que vous souhaitez quitter");
+								int idGroup = Integer.parseInt(sc.nextLine());
+								dos.writeInt(idGroup);
+								dos.flush();
+
+								//demande confirmation
+								System.out.println("Souhaitez-vous quitter ce groupe ?"); //rajouter nom groupe TODO
+								System.out.println("1 : oui				0 : non");
+								if(Integer.parseInt(sc.nextLine())==1){
+									c.sendPacket(0, bos.toByteArray());
+								}							
 							} catch (Exception e) {
-								// TODO: handle exception
+								System.out.println("Mauvais format");
 							}
 							
 						}				
