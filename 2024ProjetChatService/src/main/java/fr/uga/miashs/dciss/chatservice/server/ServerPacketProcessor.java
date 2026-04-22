@@ -63,7 +63,7 @@ public class ServerPacketProcessor implements PacketProcessor {
 			if (u != null) {
 				boolean added = g.addMember(u);
 				if (added) {
-					server.insertMemberInDb(g.getId(), u.getId());
+					server.getDb().insertMember(g.getId(), u.getId());
 				}
 			} else {
 				System.out.println("USER " + userId + " NOT FOUND");

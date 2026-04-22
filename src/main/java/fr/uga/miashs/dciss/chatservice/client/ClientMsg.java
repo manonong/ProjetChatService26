@@ -11,42 +11,25 @@
 
 package fr.uga.miashs.dciss.chatservice.client;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import fr.uga.miashs.dciss.chatservice.common.Packet;
+import fr.uga.miashs.dciss.chatservice.common.db.DatabaseManager;
+import fr.uga.miashs.dciss.chatservice.common.db.MessageDAO;
+
+import java.io.*;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;	//new
-import java.sql.ResultSet;			//new
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.InputMismatchException;
-import java.util.List;
+import java.nio.file.*;
 import java.util.Scanner;
 
-import fr.uga.miashs.dciss.chatservice.common.Packet;
-
-/**
- * Manages the connection to a ServerMsg. Method startSession() is used to
- * establish the connection. Then messages can be send by a call to sendPacket.
- * The reception is done asynchronously (internally by the method receiveLoop())
- * and the reception of a message is notified to MessagesListeners. To register
- * a MessageListener, the method addMessageListener has to be called. Session
- * are closed thanks to the method closeSession().
- */
 public class ClientMsg {
 
 	private String serverAddress;
 	private int serverPort;
 
-	private Socket s;					// Socket de l'utlisateur (est null == jamais connecté OU session fermée)
-	private DataOutputStream dos;		//DOS est pour les flux SORTANT
-	private DataInputStream dis;		// DIS est pour les flux ENTRANT
+	private Socket socket;
+	private DataOutputStream dos;
+	private DataInputStream dis;
 
-	private int identifier;				//Identifiant de l'utlisateur (est 0 == jamais connecté)
+	private int identifier;
 
 	private List<MessageListener> mListeners;
 	private List<ConnectionListener> cListeners;
