@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import fr.uga.miashs.dciss.chatservice.common.Packet;
+import fr.uga.miashs.dciss.chatservice.server.GroupMsg;
 
 /**
  * Manages the connection to a ServerMsg. Method startSession() is used to
@@ -218,7 +219,6 @@ public class ClientMsg {
 		}
 		
 		
-		//faut demander si il veut créer un groupe
 		Scanner sc = new Scanner(System.in);
 		String lu = null;
 		while (!"\\quit".equals(lu)) {
@@ -250,28 +250,47 @@ public class ClientMsg {
 						System.out.println("Tapez 1 pour créer un groupe");
 						System.out.println("Tapez 2 pour quitter un groupe");				
 						System.out.println("Tapez 3 pour gérer un groupe existant dont vous être propriétaire");
-						action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+						int actionGroupe = Integer.parseInt(sc.nextLine()); //récupere la valeur 
 
-						if (action==1) { //créer un groupe
+						if (actionGroupe==1) { //créer un groupe
 							try {
+								ByteArrayOutputStream bos = new ByteArrayOutputStream(); //on rajoute une place dans le buffer pour le groupe
+								DataOutputStream dos = new DataOutputStream(bos);
+								// byte 1 : create group on server
+								dos.writeByte(1);
+
 								System.out.println("Nom du groupe ?");
-								String nomGroupe = sc.nextLine();
+								String nomGroupe = sc.nextLine(); 
+								///////////TODO voir lien BDD
+
 								System.out.println("Combien de personnes voulez-vous ajouter ?");
-								int nbrMembre = Integer.parseInt(sc.nextLine());
+								int nbrMembre = Integer.parseInt(sc.nextLine());								
 								if(nbrMembre<=0){throw new IllegalArgumentException("Doit être positif");}
-					
+								dos.writeInt(nbrMembre); //reserve les bits avec le nbr de places
 
 								System.out.println("Qui voulez-vous ajouter :");
 								//avec les id
+								for(int i=1; i<=nbrMembre; i++){//demande le meme nombre d'id qu'annoncé avant
+									int idMembre = Integer.parseInt(sc.next());
+									if (idMembre==c.getIdentifier()) { throw new IllegalArgumentException("ne peut pas s'ajouter soi-même");}
+									dos.writeInt(idMembre);
+									System.out.println(idMembre+" a été ajouté");
+								} 
+								System.out.println(nomGroupe +" a été crée");
+
+								c.sendPacket(0, bos.toByteArray());
 								
-							} catch (Exception e) {
-								// TODO: handle exception
+							} catch (InputMismatchException | NumberFormatException e) {
+								System.out.println("Mauvais format");
 							}
 							
 						}
 
-						if (action==2) {//quitter un groupe
+						if (actionGroupe==2) {//quitter un groupe
 							try {
+								//voir les groupes dont l'user est membre, en selectionner un  
+
+
 								
 							} catch (Exception e) {
 								// TODO: handle exception
@@ -279,7 +298,7 @@ public class ClientMsg {
 							
 						}				
 						
-						if (action==3) {//gérer un groupe existant avec les droits owner
+						if (actionGroupe==3) {//gérer un groupe existant avec les droits owner
 							try {
 								//1ere étape choisir le groupe, TODO puis :
 
@@ -288,9 +307,9 @@ public class ClientMsg {
 								System.out.println("Tapez 3 pour modifier le nom du groupe");
 								System.out.println("Tapez 4 pour transferer le droit de propriété du groupe");
 								System.out.println("Tapez 5 pour supprimer le groupe");
-								action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+								int actionGroupeAdmin = Integer.parseInt(sc.nextLine()); //récupere la valeur 
 
-								if (action==1) {//ajouter un utilisateur
+								if (actionGroupeAdmin==1) {//ajouter un utilisateur
 									try {
 										
 									} catch (Exception e) {
@@ -298,7 +317,7 @@ public class ClientMsg {
 									}
 								}
 								
-								if (action==2) {//supprimer un utilisateur
+								if (actionGroupeAdmin==2) {//supprimer un utilisateur
 									try {
 										
 									} catch (Exception e) {
@@ -306,7 +325,7 @@ public class ClientMsg {
 									}
 								}
 
-								if (action==3) {//modifier nom du groupe
+								if (actionGroupeAdmin==3) {//modifier nom du groupe
 									try {
 										
 									} catch (Exception e) {
@@ -314,7 +333,7 @@ public class ClientMsg {
 									}
 								}
 
-								if (action==4) {//transferer le droit de propriété du groupe
+								if (actionGroupeAdmin==4) {//transferer le droit de propriété du groupe
 									try {
 										
 									} catch (Exception e) {
@@ -322,7 +341,7 @@ public class ClientMsg {
 									}
 								}
 
-								if (action==5) {//supprimer le groupe
+								if (actionGroupeAdmin==5) {//supprimer le groupe
 									try {
 										
 									} catch (Exception e) {
@@ -334,65 +353,62 @@ public class ClientMsg {
 								// TODO: handle exception
 							}
 						}
-
-						
-					} catch (InputMismatchException | NumberFormatException e) {
-				System.out.println("Mauvais format");
+					}catch (Exception e) {
+						// TODO: handle exception
 					}
+				}
+		
+				if (action==3) {//gestion des contacts
+					try{
+						System.out.println("Tapez 1 pour ajouter un contact");
+						System.out.println("Tapez 2 pour supprimer un contact");				
+						System.out.println("Tapez 3 pour modifier le nom d'un contact");	
+						int actionContact = Integer.parseInt(sc.nextLine()); //récupere la valeur 
 
-					if (action==3) {//gestion des contacts
-							System.out.println("Tapez 1 pour ajouter un contact");
-							System.out.println("Tapez 2 pour supprimer un contact");				
-							System.out.println("Tapez 3 pour modifier le nom d'un contact");
-
-							action = Integer.parseInt(sc.nextLine()); //récupere la valeur 
-
-							if(action==1){ //ajouter un contact
-								try {
-									
-								} catch (Exception e) {
-									// TODO: handle exception
-								}
+						if(actionContact==1){ //ajouter un contact
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
 							}
-
-							if(action==2){ //supprimer un contact
-								try {
-									
-								} catch (Exception e) {
-									// TODO: handle exception
-								}
-							}	
-							
-							if(action==3){ //modifier un contact
-								try {
-									
-								} catch (Exception e) {
-									// TODO: handle exception
-								}
-							}
-
-						
-					}
-
-					if(action==4){//gestion utilisateur, pour le moment que modifier son nom
-						try {
-							
-						} catch (Exception e) {
-							// TODO: handle exception
 						}
+
+						if(actionContact==2){ //supprimer un contact
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}	
+							
+						if(actionContact==3){ //modifier un contact
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}
+
+						
+					} catch (Exception e) {
+						// TODO: handle exception
+					}
+				}
+
+				if(action==4){//gestion utilisateur, pour le moment que modifier son nom
+					try {
+						
+					} catch (Exception e) {
+						// TODO: handle exception						}
 					}
 					
 				}
-
 
 			} catch (InputMismatchException | NumberFormatException e) {
 				System.out.println("Mauvais format");
 			}
 
 		}
-
-		//permet à un user de créer un groupe
-		//TODO 
 
 		/*
 		 * int id =1+(c.getIdentifier()-1) % 2; System.out.println("send to "+id);
@@ -402,7 +418,7 @@ public class ClientMsg {
 		 * Thread.sleep(10000);
 		 */
 
-		c.closeSession();
+
 
 	}
 
