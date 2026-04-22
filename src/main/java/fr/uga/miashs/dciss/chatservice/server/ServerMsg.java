@@ -61,6 +61,50 @@ public class ServerMsg {
 		return res;
 	}
 	
+
+	// Retourne un groupe à partir de son identifiant
+    public GroupMsg getGroup(int groupId) {
+    return groups.get(groupId);
+    }
+
+
+	// Ajoute un utilisateur à un groupe
+    public boolean addUserToGroup(int userId, int groupId) {
+
+    // récupération de l'utilisateur
+    UserMsg u = users.get(userId);
+
+    // récupération du groupe
+    GroupMsg g = groups.get(groupId);
+
+    // vérification de l'existence des deux éléments
+    if (u == null || g == null) return false;
+
+    // ajout via la logique du groupe (relation bidirectionnelle gérée dans GroupMsg)
+    return g.addMember(u);
+    }
+
+
+
+	// Retire un utilisateur d'un groupe
+    public boolean removeUserFromGroup(int userId, int groupId) {
+
+    // récupération de l'utilisateur
+    UserMsg u = users.get(userId);
+
+    // récupération du groupe
+    GroupMsg g = groups.get(groupId);
+
+    // vérification de l'existence des deux éléments
+    if (u == null || g == null) return false;
+
+    // suppression via la logique du groupe
+    return g.removeMember(u);
+    }
+
+
+
+
 	public boolean removeGroup(int groupId) {
 		GroupMsg g =groups.remove(groupId);
 		if (g==null) return false;
@@ -88,24 +132,56 @@ public class ServerMsg {
 	// Methode utilisée pour savoir quoi faire d'un paquet
 	// reçu par le serveur
 	public void processPacket(Packet p) {
-		PacketProcessor pp = null;
-		if (p.destId < 0) { //message de groupe
-			// can be send only if sender is member
-			UserMsg sender = users.get(p.srcId);
-			GroupMsg g = groups.get(p.destId);
-			if (g.getMembers().contains(sender)) pp=g;
-		}
-		else if (p.destId > 0) { // message entre utilisateurs
-			 pp = users.get(p.destId);
-		}
-		else { // message de gestion pour le serveur
-			pp=sp;
-		}
-		
-		if (pp != null) {
-			pp.process(p);
-		}
+
+    // Référence vers le processeur qui va traiter le paquet
+    PacketProcessor pp = null;
+
+    // Cas 1 : message destiné à un groupe
+    if (p.destId < 0) { //message de groupe
+
+        // can be send only if sender is member
+        // Récupération de l'expéditeur du message
+        UserMsg sender = users.get(p.srcId);
+
+        // Récupération du groupe destinataire
+        GroupMsg g = groups.get(p.destId);
+
+        // Vérification de sécurité : éviter NullPointerException et accès non autorisé
+        if (g != null && sender != null) {
+
+            // Vérifie que l'expéditeur appartient bien au groupe
+            if (g.getMembers().contains(sender)) {
+
+                // Le groupe devient responsable du traitement du paquet
+                pp = g;
+            }
+        }
+    }
+
+    // Cas 2 : message entre utilisateurs
+    else if (p.destId > 0) { // message entre utilisateurs
+
+        // Récupération de l'utilisateur destinataire
+        pp = users.get(p.destId);
+    }
+
+    // Cas 3 : message de gestion pour le serveur
+    else { // message de gestion pour le serveur
+
+        // Le serveur traite directement ce type de message
+        pp = sp;
+    }
+
+    // Exécution du traitement si un processeur valide a été trouvé
+    if (pp != null) {
+
+        // Délégation du traitement du paquet
+        pp.process(p);
+    }
 	}
+
+
+
 
 	/**
 	 * 
