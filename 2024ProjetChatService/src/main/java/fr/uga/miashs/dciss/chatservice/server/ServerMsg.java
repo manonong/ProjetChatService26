@@ -38,7 +38,6 @@ public class ServerMsg {
 	private transient boolean started;
 	private transient ExecutorService executor;
 	private transient ServerPacketProcessor sp;
-	private Connection cnx;
 
 	// maps pour associer les id aux users et groupes
 	private Map<Integer, UserMsg> users;
@@ -48,75 +47,7 @@ public class ServerMsg {
 	private AtomicInteger nextUserId;
 	private AtomicInteger nextGroupId;
 
-	private void initDatabase() {
-		try {
-			cnx = DriverManager.getConnection("jdbc:derby:target/chatDB;create=true"); // Crée la base de données si elle n'existe pas
-
-			Statement stmt = cnx.createStatement();
-
-			try {
-				stmt.executeUpdate(
-						"CREATE TABLE Groups (" +
-								"groupId INT PRIMARY KEY, " +
-								"ownerId INT NOT NULL)");
-			} catch (SQLException e) {
-				// table already exists
-			}
-
-			try {
-				stmt.executeUpdate(
-						"CREATE TABLE GroupMembers (" +
-								"groupId INT NOT NULL, " +
-								"userId INT NOT NULL, " +
-								"PRIMARY KEY (groupId, userId))");
-			} catch (SQLException e) {
-				// table already exists
-			}
-
-			System.out.println("BDD initialisée : target/chatDB");
-		} catch (SQLException e) {
-			throw new ServerException("Erreur d'initialisation BDD", e);
-		}
-	}
-
-	public void insertGroupInDb(int groupId, int ownerId) {
-		try {
-			PreparedStatement pstmt = cnx.prepareStatement(
-					"INSERT INTO Groups (groupId, ownerId) VALUES (?, ?)");
-			pstmt.setInt(1, groupId); 
-			pstmt.setInt(2, ownerId);
-			pstmt.executeUpdate();
-			pstmt.close();
-		} catch (SQLException e) {
-			throw new ServerException("Erreur INSERT Groups", e);
-		}
-	}
-
-	public void insertMemberInDb(int groupId, int userId) {
-		try {
-			PreparedStatement pstmt = cnx.prepareStatement(
-					"INSERT INTO GroupMembers (groupId, userId) VALUES (?, ?)");
-			pstmt.setInt(1, groupId);
-			pstmt.setInt(2, userId);
-			pstmt.executeUpdate();
-			pstmt.close();
-		} catch (SQLException e) {
-			throw new ServerException("Erreur INSERT GroupMembers", e);
-		}
-	}
-
-	public void deleteMemberInDb(int groupId, int userId) {
-		try {
-			PreparedStatement pstmt = cnx.prepareStatement(
-					"DELETE FROM GroupMembers WHERE groupId = ? AND userId = ?");
-			pstmt.setInt(1, groupId);
-			pstmt.setInt(2, userId);
-			pstmt.executeUpdate();
-			pstmt.close();
-		} catch (SQLException e) {
-			throw new ServerException("Erreur DELETE GroupMembers", e);
-		}
-	}
+	private DatabaseManager db;
 
 	public ServerMsg(int port) throws IOException {
 		serverSock = new ServerSocket(port);
@@ -129,6 +60,11 @@ public class ServerMsg {
 		System.out.println("DB CONNECTED");
 		sp = new ServerPacketProcessor(this);
 		executor = Executors.newWorkStealingPool();
+		db = new DatabaseManager();
+	}
+
+	public DatabaseManager getDb() {
+		return db;
 	}
 
 	public GroupMsg createGroup(int ownerId) {
@@ -138,8 +74,8 @@ public class ServerMsg {
 		int id = nextGroupId.getAndDecrement();
 		GroupMsg res = new GroupMsg(id, owner);
 		groups.put(id, res);
-		insertGroupInDb(id, ownerId);
-		insertMemberInDb(id, ownerId);
+		db.insertGroup(id, ownerId);
+		db.insertMember(id, ownerId);
 		System.out.println("GROUPS ACTUELS = " + groups.keySet());
 		LOG.info("Group " + res.getId() + " created");
 		return res;
@@ -248,7 +184,8 @@ public class ServerMsg {
 		ServerMsg s = new ServerMsg(1666);
 		s.start();
 	}
-		public void printDbMembers() {
+
+	public void printDbMembers() {
 		try {
 			Statement stmt = cnx.createStatement();
 			var res = stmt.executeQuery("SELECT groupId, userId FROM GroupMembers ORDER BY groupId, userId");
