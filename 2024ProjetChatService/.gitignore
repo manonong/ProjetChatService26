@@ -162,8 +162,4 @@ fabric.properties
 hs_err_pid*
 replay_pid*
 
-.idea/
-target/
-chat.db
-downloads/
-*.docx
+.DS_Store

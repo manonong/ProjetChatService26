@@ -9,26 +9,9 @@
  * You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package fr.uga.miashs.dciss.chatservice.common;
+package fr.uga.miashs.dciss.chatservice.client;
 
-/*
- * Data structure to represent a packet
- */
-public class Packet {
+public interface ConnectionListener {
 
-	public final int srcId;
-	public final int destId;
-	public final byte[] data;
-	
-	public Packet(int srcId, int destId, byte[] data) {
-		super();
-		this.srcId = srcId;
-		this.destId = destId;
-		this.data = data;
-	}
-	public class PacketType {
-		public static final int TEXT = 1;
-		public static final int FILE = 2;
-	}
-	
+	public void connectionEvent(boolean active);
 }

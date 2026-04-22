@@ -1,0 +1,266 @@
+/*
+ * Copyright (c) 2024.  Jerome David. Univ. Grenoble Alpes.
+ * This file is part of DcissChatService.
+ *
+ * DcissChatService is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * DcissChatService is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package fr.uga.miashs.dciss.chatservice.server;
+
+import java.io.*;
+import java.net.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import fr.uga.miashs.dciss.chatservice.common.Packet;
+
+import java.util.*;
+import java.io.IOException;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+
+public class ServerMsg {
+
+	private final static Logger LOG = Logger.getLogger(ServerMsg.class.getName());
+	public final static int SERVER_CLIENTID = 0;
+	private static final long serialVersionUID = 1L;
+	private transient ServerSocket serverSock;
+	private transient boolean started;
+	private transient ExecutorService executor;
+	private transient ServerPacketProcessor sp;
+	private Connection cnx;
+
+	// maps pour associer les id aux users et groupes
+	private Map<Integer, UserMsg> users;
+	private Map<Integer, GroupMsg> groups;
+
+	// séquences pour générer les identifiant d'utilisateurs et de groupe
+	private AtomicInteger nextUserId;
+	private AtomicInteger nextGroupId;
+
+	private void initDatabase() {
+		try {
+			cnx = DriverManager.getConnection("jdbc:derby:target/chatDB;create=true"); // Crée la base de données si elle n'existe pas
+
+			Statement stmt = cnx.createStatement();
+
+			try {
+				stmt.executeUpdate(
+						"CREATE TABLE Groups (" +
+								"groupId INT PRIMARY KEY, " +
+								"ownerId INT NOT NULL)");
+			} catch (SQLException e) {
+				// table already exists
+			}
+
+			try {
+				stmt.executeUpdate(
+						"CREATE TABLE GroupMembers (" +
+								"groupId INT NOT NULL, " +
+								"userId INT NOT NULL, " +
+								"PRIMARY KEY (groupId, userId))");
+			} catch (SQLException e) {
+				// table already exists
+			}
+
+			System.out.println("BDD initialisée : target/chatDB");
+		} catch (SQLException e) {
+			throw new ServerException("Erreur d'initialisation BDD", e);
+		}
+	}
+
+	public void insertGroupInDb(int groupId, int ownerId) {
+		try {
+			PreparedStatement pstmt = cnx.prepareStatement(
+					"INSERT INTO Groups (groupId, ownerId) VALUES (?, ?)");
+			pstmt.setInt(1, groupId); 
+			pstmt.setInt(2, ownerId);
+			pstmt.executeUpdate();
+			pstmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur INSERT Groups", e);
+		}
+	}
+
+	public void insertMemberInDb(int groupId, int userId) {
+		try {
+			PreparedStatement pstmt = cnx.prepareStatement(
+					"INSERT INTO GroupMembers (groupId, userId) VALUES (?, ?)");
+			pstmt.setInt(1, groupId);
+			pstmt.setInt(2, userId);
+			pstmt.executeUpdate();
+			pstmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur INSERT GroupMembers", e);
+		}
+	}
+
+	public void deleteMemberInDb(int groupId, int userId) {
+		try {
+			PreparedStatement pstmt = cnx.prepareStatement(
+					"DELETE FROM GroupMembers WHERE groupId = ? AND userId = ?");
+			pstmt.setInt(1, groupId);
+			pstmt.setInt(2, userId);
+			pstmt.executeUpdate();
+			pstmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur DELETE GroupMembers", e);
+		}
+	}
+
+	public ServerMsg(int port) throws IOException {
+		serverSock = new ServerSocket(port);
+		started = false;
+		users = new ConcurrentHashMap<>();
+		groups = new ConcurrentHashMap<>();
+		nextUserId = new AtomicInteger(1);
+		nextGroupId = new AtomicInteger(-1);
+		initDatabase();
+		System.out.println("DB CONNECTED");
+		sp = new ServerPacketProcessor(this);
+		executor = Executors.newWorkStealingPool();
+	}
+
+	public GroupMsg createGroup(int ownerId) {
+		UserMsg owner = users.get(ownerId);
+		if (owner == null)
+			throw new ServerException("User with id=" + ownerId + " unknown. Group creation failed.");
+		int id = nextGroupId.getAndDecrement();
+		GroupMsg res = new GroupMsg(id, owner);
+		groups.put(id, res);
+		insertGroupInDb(id, ownerId);
+		insertMemberInDb(id, ownerId);
+		System.out.println("GROUPS ACTUELS = " + groups.keySet());
+		LOG.info("Group " + res.getId() + " created");
+		return res;
+	}
+
+	public boolean removeGroup(int groupId) {
+		GroupMsg g = groups.remove(groupId);
+		if (g == null)
+			return false;
+		g.beforeDelete();
+		return true;
+	}
+
+	public boolean removeUser(int userId) {
+		UserMsg u = users.remove(userId);
+		if (u == null)
+			return false;
+		u.beforeDelete();
+		return true;
+	}
+
+	public UserMsg getUser(int userId) {
+		return users.get(userId);
+	}
+
+	public GroupMsg getGroup(int groupId) {
+		return groups.get(groupId);
+	}
+
+	// Methode utilisée pour savoir quoi faire d'un paquet
+	// reçu par le serveur
+	public void processPacket(Packet p) {
+		PacketProcessor pp = null;
+		if (p.destId < 0) { // message de groupe
+			// can be send only if sender is member
+			UserMsg sender = users.get(p.srcId);
+			GroupMsg g = groups.get(p.destId);
+			if (g.getMembers().contains(sender))
+				pp = g;
+		} else if (p.destId > 0) { // message entre utilisateurs
+			pp = users.get(p.destId);
+		} else { // message de gestion pour le serveur
+			pp = sp;
+		}
+
+		if (pp != null) {
+			pp.process(p);
+		}
+	}
+
+	public void start() {
+		started = true;
+		while (started) {
+			try {
+				// le serveur attend une connexion d'un client
+				Socket s = serverSock.accept();
+
+				DataInputStream dis = new DataInputStream(s.getInputStream());
+				DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+
+				// lit l'identifiant du client
+				int userId = dis.readInt();
+				// si 0 alors il faut créer un nouvel utilisateur et
+				// envoyer l'identifiant au client
+				if (userId == 0) {
+					userId = nextUserId.getAndIncrement();
+					dos.writeInt(userId);
+					dos.flush();
+					users.put(userId, new UserMsg(userId, this));
+				}
+				// si l'identifiant existe ou est nouveau alors
+				// deux "taches"/boucles sont lancées en parralèle
+				// une pour recevoir les messages du client,
+				// une pour envoyer des messages au client
+				// les deux boucles sont gérées au niveau de la classe UserMsg
+				UserMsg x = users.get(userId);
+				if (x.open(s)) {
+					LOG.info(userId + " connected");
+					// lancement boucle de reception
+					executor.submit(() -> x.receiveLoop());
+					// lancement boucle d'envoi
+					executor.submit(() -> x.sendLoop());
+				} else { // si l'idenfiant est inconnu, on ferme la connexion
+					s.close();
+				}
+
+			} catch (IOException e) {
+				LOG.info("Close server");
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public void stop() {
+		started = false;
+		try {
+			serverSock.close();
+			users.values().forEach(s -> s.close());
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public static void main(String[] args) throws IOException {
+		ServerMsg s = new ServerMsg(1666);
+		s.start();
+	}
+		public void printDbMembers() {
+		try {
+			Statement stmt = cnx.createStatement();
+			var res = stmt.executeQuery("SELECT groupId, userId FROM GroupMembers ORDER BY groupId, userId");
+			System.out.println("=== BDD GroupMembers ===");
+			while (res.next()) {
+				System.out.println(res.getInt("groupId") + " -> " + res.getInt("userId"));
+			}
+			res.close();
+			stmt.close();
+		} catch (SQLException e) {
+			throw new ServerException("Erreur SELECT GroupMembers", e);
+		}
+	}
+
+}

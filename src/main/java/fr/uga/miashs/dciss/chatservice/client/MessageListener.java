@@ -11,10 +11,14 @@
 
 package fr.uga.miashs.dciss.chatservice.client;
 
+import fr.uga.miashs.dciss.chatservice.common.FilePayloadUtil;
 import fr.uga.miashs.dciss.chatservice.common.Packet;
+import fr.uga.miashs.dciss.chatservice.common.FileDAO;
+import fr.uga.miashs.dciss.chatservice.common.MessageDAO;
 
 public interface MessageListener {
 
 	void messageReceived(Packet p);
+
 
 }

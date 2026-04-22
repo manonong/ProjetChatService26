@@ -13,44 +13,37 @@ package fr.uga.miashs.dciss.chatservice.common;
 
 import java.sql.*;
 
+
 public class ExempleConnexionDB {
 
-	public static void main(String[] args) {
-
+	public static void main(String[] args) {		
+		
 		try {
-			Connection cnx = DriverManager.getConnection("jdbc:derby:target/sample;create=true");
+			Connection cnx = DriverManager.getConnection("jdbc:derby:target/sample;create=true");//"jdbc:sqlite:sample.db");//
+			
+			cnx.createStatement().executeUpdate("CREATE TABLE MsgUser (id INT PRIMARY KEY, nickname VARCHAR(20))");
 
-			// eviter l'erreur quand creer le table
-			try {
-				cnx.createStatement().executeUpdate(
-						"CREATE TABLE MsgUser (id INT PRIMARY KEY, nickname VARCHAR(20))"
-				);
-				System.out.println("Table created");
-			} catch (SQLException e) {
-				System.out.println("Table already exists, skip creation");
-			}
-
-			// inserer les datas
 			PreparedStatement pstmt = cnx.prepareStatement("INSERT INTO MsgUser VALUES (?,?)");
-
+			
 			pstmt.setInt(1, 35);
 			pstmt.setString(2, "titi");
-
-			try {
-				pstmt.executeUpdate();
-			} catch (SQLException e) {
-				System.out.println("Data already exists, skip insert");
-			}
-
-			// rechercher les donnees
+			
+			boolean inserted = pstmt.executeUpdate()==1;
+			
+			
 			ResultSet res = cnx.createStatement().executeQuery("SELECT * FROM MsgUser");
-
+			
 			while (res.next()) {
-				System.out.println(res.getInt(1) + " - " + res.getString(2));
+				System.out.println(res.getInt(1)+" - "+res.getString(2));
 			}
-
+			
+			
+			
 		} catch (SQLException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
 	}
+
 }

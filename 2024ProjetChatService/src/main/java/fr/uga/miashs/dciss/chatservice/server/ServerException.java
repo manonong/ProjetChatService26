@@ -9,26 +9,33 @@
  * You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>.
  */
 
-package fr.uga.miashs.dciss.chatservice.common;
+package fr.uga.miashs.dciss.chatservice.server;
 
-/*
- * Data structure to represent a packet
- */
-public class Packet {
+public class ServerException extends RuntimeException {
 
-	public final int srcId;
-	public final int destId;
-	public final byte[] data;
-	
-	public Packet(int srcId, int destId, byte[] data) {
+	public ServerException() {
 		super();
-		this.srcId = srcId;
-		this.destId = destId;
-		this.data = data;
+		// TODO Auto-generated constructor stub
 	}
-	public class PacketType {
-		public static final int TEXT = 1;
-		public static final int FILE = 2;
+
+	public ServerException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+		super(message, cause, enableSuppression, writableStackTrace);
+		// TODO Auto-generated constructor stub
 	}
-	
+
+	public ServerException(String message, Throwable cause) {
+		super(message, cause);
+		// TODO Auto-generated constructor stub
+	}
+
+	public ServerException(String message) {
+		super(message);
+		// TODO Auto-generated constructor stub
+	}
+
+	public ServerException(Throwable cause) {
+		super(cause);
+		// TODO Auto-generated constructor stub
+	}
+
 }

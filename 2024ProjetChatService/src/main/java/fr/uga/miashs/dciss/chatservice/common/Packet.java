@@ -26,9 +26,6 @@ public class Packet {
 		this.destId = destId;
 		this.data = data;
 	}
-	public class PacketType {
-		public static final int TEXT = 1;
-		public static final int FILE = 2;
-	}
+	
 	
 }
