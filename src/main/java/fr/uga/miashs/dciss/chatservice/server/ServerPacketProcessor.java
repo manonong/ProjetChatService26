@@ -35,7 +35,39 @@ public class ServerPacketProcessor implements PacketProcessor {
 		} else {
 			LOG.warning("Server message of type=" + type + " not handled by procesor");
 		}
+	
+
+		if (type == 2) { // suppression groupe
+			//TODO
+		}
+
+		if (type == 3){//ajouter un user dans un groupe
+
+		}
+
+		if (type == 4){//retirer un user dans un groupe
+
+		}	
+		
+		if (type == 5){//changer le nom d'un groupe
+
+		}	
+		
+		if (type == 6){//transferer la propriété d'un groupe
+
+		}	
+
+		if (type == 7){//supprimer un groupe
+
+		}
+
+		if (type == 8){//modifier son username
+
+		}
+		
+
 	}
+
 	
 	public void createGroup(int ownerId, ByteBuffer data) {
 		int nb = data.getInt();
