@@ -11,15 +11,19 @@
 
 package fr.uga.miashs.dciss.chatservice.server;
 
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import fr.uga.miashs.dciss.chatservice.common.Packet;
-
-import java.util.*;
 
 public class ServerMsg {
 	
@@ -62,7 +66,7 @@ public class ServerMsg {
 	}
 	
 	public boolean removeGroup(int groupId) {
-		GroupMsg g =groups.remove(groupId);
+		GroupMsg g =groups.remove(groupId); 
 		if (g==null) return false;
 		g.beforeDelete();
 		return true;
@@ -77,6 +81,10 @@ public class ServerMsg {
 	
 	public UserMsg getUser(int userId) {
 		return users.get(userId);
+	}
+
+	public GroupMsg getGroup(int groupId) {
+    	return groups.get(groupId);
 	}
 	
 	// À implémenter — restaure un UserMsg depuis la sérialisation

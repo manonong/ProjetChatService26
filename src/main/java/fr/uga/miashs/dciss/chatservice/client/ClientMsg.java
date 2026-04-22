@@ -11,14 +11,32 @@
 
 package fr.uga.miashs.dciss.chatservice.client;
 
-import fr.uga.miashs.dciss.chatservice.common.Packet;
-import fr.uga.miashs.dciss.chatservice.common.db.*;
-
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
-import java.util.*;
-import java.nio.file.*;
+import java.net.UnknownHostException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;	//new
+import java.sql.ResultSet;			//new
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.InputMismatchException;
+import java.util.List;
+import java.util.Scanner;
 
+import fr.uga.miashs.dciss.chatservice.common.Packet;
+
+/**
+ * Manages the connection to a ServerMsg. Method startSession() is used to
+ * establish the connection. Then messages can be send by a call to sendPacket.
+ * The reception is done asynchronously (internally by the method receiveLoop())
+ * and the reception of a message is notified to MessagesListeners. To register
+ * a MessageListener, the method addMessageListener has to be called. Session
+ * are closed thanks to the method closeSession().
+ */
 public class ClientMsg {
 
 	private String serverAddress;
@@ -209,6 +227,168 @@ public class ClientMsg {
 
 					Files.write(Paths.get(path), fileBytes);
 
+				if (action==2) { //gérer un groupe
+					try {
+						System.out.println("Tapez 1 pour créer un groupe");
+						System.out.println("Tapez 2 pour quitter un groupe");				
+						System.out.println("Tapez 3 pour gérer un groupe existant dont vous être propriétaire");
+						int actionGroupe = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+
+						if (actionGroupe==1) { //créer un groupe
+							try {
+								ByteArrayOutputStream bos = new ByteArrayOutputStream(); //on rajoute une place dans le buffer pour le groupe
+								DataOutputStream dos = new DataOutputStream(bos);
+								// byte 1 : create group on server
+								dos.writeByte(1);
+
+								System.out.println("Nom du groupe ?");
+								String nomGroupe = sc.nextLine(); 
+								///////////TODO voir lien BDD
+
+								System.out.println("Combien de personnes voulez-vous ajouter ?");
+								int nbrMembre = Integer.parseInt(sc.nextLine());								
+								if(nbrMembre<=0){throw new IllegalArgumentException("Doit être positif");}
+								dos.writeInt(nbrMembre); //reserve les bits avec le nbr de places
+
+								System.out.println("Qui voulez-vous ajouter :");
+								//avec les id
+								for(int i=1; i<=nbrMembre; i++){//demande le meme nombre d'id qu'annoncé avant
+									int idMembre = Integer.parseInt(sc.next());
+									if (idMembre==c.getIdentifier()) { throw new IllegalArgumentException("ne peut pas s'ajouter soi-même");}
+									dos.writeInt(idMembre);
+									System.out.println(idMembre+" a été ajouté");
+								} 
+								System.out.println(nomGroupe +" a été crée");
+
+								c.sendPacket(0, bos.toByteArray());
+								
+							} catch (InputMismatchException | NumberFormatException e) {
+								System.out.println("Mauvais format");
+							}
+							
+						}
+
+						if (actionGroupe==2) {//quitter un groupe
+							try {
+								ByteArrayOutputStream bos = new ByteArrayOutputStream(); //on rajoute une place dans le buffer pour le groupe
+								DataOutputStream dos = new DataOutputStream(bos);								
+								//voir les groupes dont l'user est membre, en selectionner un 
+
+								dos.writeByte(2); 
+
+								System.out.println("id du groupe que vous souhaitez quitter");
+								int idGroup = Integer.parseInt(sc.nextLine());
+								dos.writeInt(idGroup);
+								dos.flush();
+
+								//demande confirmation
+								System.out.println("Souhaitez-vous quitter ce groupe ?"); //rajouter nom groupe TODO
+								System.out.println("1 : oui				0 : non");
+								if(Integer.parseInt(sc.nextLine())==1){
+									c.sendPacket(0, bos.toByteArray());
+								}							
+							} catch (Exception e) {
+								System.out.println("Mauvais format");
+							}
+							
+						}				
+						
+						if (actionGroupe==3) {//gérer un groupe existant avec les droits owner
+							try {
+								//1ere étape choisir le groupe, TODO puis :
+
+								System.out.println("Tapez 1 pour ajouter un utilisateur");
+								System.out.println("Tapez 2 pour supprimer un utilisateur");				
+								System.out.println("Tapez 3 pour modifier le nom du groupe");
+								System.out.println("Tapez 4 pour transferer le droit de propriété du groupe");
+								System.out.println("Tapez 5 pour supprimer le groupe");
+								int actionGroupeAdmin = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+
+								if (actionGroupeAdmin==1) {//ajouter un utilisateur
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+								
+								if (actionGroupeAdmin==2) {//supprimer un utilisateur
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+								if (actionGroupeAdmin==3) {//modifier nom du groupe
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+								if (actionGroupeAdmin==4) {//transferer le droit de propriété du groupe
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+								if (actionGroupeAdmin==5) {//supprimer le groupe
+									try {
+										
+									} catch (Exception e) {
+										// TODO: handle exception
+									}
+								}
+
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}
+					}catch (Exception e) {
+						// TODO: handle exception
+					}
+				}
+		
+				if (action==3) {//gestion des contacts
+					try{
+						System.out.println("Tapez 1 pour ajouter un contact");
+						System.out.println("Tapez 2 pour supprimer un contact");				
+						System.out.println("Tapez 3 pour modifier le nom d'un contact");	
+						int actionContact = Integer.parseInt(sc.nextLine()); //récupere la valeur 
+
+						if(actionContact==1){ //ajouter un contact
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}
+
+						if(actionContact==2){ //supprimer un contact
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}	
+							
+						if(actionContact==3){ //modifier un contact
+							try {
+								
+							} catch (Exception e) {
+								// TODO: handle exception
+							}
+						}
+
+						
+					} catch (Exception e) {
+						// TODO: handle exception
+					}
+				}
 					System.out.println("Fichier reçu de " + p.srcId + " : " + newName);
 
 					new fr.uga.miashs.dciss.chatservice.common.db.FileDAO()
