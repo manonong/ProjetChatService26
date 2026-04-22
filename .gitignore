@@ -164,3 +164,6 @@ replay_pid*
 
 .idea/
 target/
+chat.db
+downloads/
+*.docx
