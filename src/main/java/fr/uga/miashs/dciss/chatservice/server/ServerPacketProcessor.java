@@ -38,7 +38,7 @@ public class ServerPacketProcessor implements PacketProcessor {
 	
 
 		if (type == 2) { // suppression groupe
-			//TODO
+    		leaveGroup(p.srcId, buf);
 		}
 
 		if (type == 3){//ajouter un user dans un groupe
@@ -77,4 +77,11 @@ public class ServerPacketProcessor implements PacketProcessor {
 		}
 	}
 
+	public void leaveGroup(int userId, ByteBuffer data) { //data est l'id du groupe à quitter
+	    int groupId = data.getInt();
+    	GroupMsg g = server.getGroup(groupId);
+	    if (g != null) { // si le groupe id existe fait 
+    	    g.removeMember(server.getUser(userId));
+    	}
+	}
 }
