@@ -1,221 +1,222 @@
-/*
- * Copyright (c) 2024.  Jerome David. Univ. Grenoble Alpes.
- * This file is part of DcissChatService.
- *
- * DcissChatService is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
- * DcissChatService is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package fr.uga.miashs.dciss.chatservice.client;
 
-import fr.uga.miashs.dciss.chatservice.common.Packet;
-import fr.uga.miashs.dciss.chatservice.common.db.DatabaseManager;
-import fr.uga.miashs.dciss.chatservice.common.db.MessageDAO;
-
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.net.Socket;
-import java.nio.file.*;
-import java.util.Scanner;
+import java.nio.file.Files;
+import java.util.function.Consumer;
 
 public class ClientMsg {
 
-	private String serverAddress;
-	private int serverPort;
+    private String serverAddress;
+    private int serverPort;
 
-	private Socket socket;
-	private DataOutputStream dos;
-	private DataInputStream dis;
+    private Socket socket;
+    private DataOutputStream dos;
+    private DataInputStream dis;
 
-	private int identifier;
+    private int identifier;
 
-	public static final int TYPE_TEXT = 1;
-	public static final int TYPE_FILE = 2;
+    public static final int TYPE_TEXT = 1;
+    public static final int TYPE_FILE = 2;
 
-	public ClientMsg(String address, int port) {
-		this(0, address, port);
-	}
+    // 👉 新增：监听器
+    private Consumer<String> messageListener;
 
-	public ClientMsg(int id, String address, int port) {
-		this.identifier = id;
-		this.serverAddress = address;
-		this.serverPort = port;
-	}
+    public ClientMsg(String address, int port) {
+        this(0, address, port);
+    }
 
-	// ======================
-	// CONNECTION
-	// ======================
+    public ClientMsg(int id, String address, int port) {
+        this.identifier = id;
+        this.serverAddress = address;
+        this.serverPort = port;
+    }
 
-	public void startSession() {
-		try {
-			socket = new Socket(serverAddress, serverPort);
-			dos = new DataOutputStream(socket.getOutputStream());
-			dis = new DataInputStream(socket.getInputStream());
+    // ======================
+    // Getter（解决报错）
+    // ======================
+    public int getIdentifier() {
+        return identifier;
+    }
 
-			dos.writeInt(identifier);
-			dos.flush();
+    // ======================
+    // Listener（解决报错）
+    // ======================
+    public void addMessageListener(Consumer<String> listener) {
+        this.messageListener = listener;
+    }
 
-			if (identifier == 0) {
-				identifier = dis.readInt();
-			}
+    // ======================
+    // CONNECTION
+    // ======================
+    public void startSession() {
+        try {
+            socket = new Socket(serverAddress, serverPort);
+            dos = new DataOutputStream(socket.getOutputStream());
+            dis = new DataInputStream(socket.getInputStream());
 
-			new Thread(this::receiveLoop).start();
+            dos.writeInt(identifier);
+            dos.flush();
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+            if (identifier == 0) {
+                identifier = dis.readInt();
+            }
 
-	// ======================
-	// RECEIVE
-	// ======================
+            new Thread(this::receiveLoop).start();
 
-	private void receiveLoop() {
-		try {
-			while (true) {
-				int src = dis.readInt();
-				int dest = dis.readInt();
-				int len = dis.readInt();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-				byte[] data = new byte[len];
-				dis.readFully(data);
+    // ======================
+    // RECEIVE
+    // ======================
+    private void receiveLoop() {
+        try {
+            while (true) {
+                int src = dis.readInt();
+                int dest = dis.readInt();
+                int len = dis.readInt();
 
-				DataInputStream dis2 = new DataInputStream(new ByteArrayInputStream(data));
-				int type = dis2.readInt();
+                byte[] data = new byte[len];
+                dis.readFully(data);
 
-				if (type == TYPE_TEXT) {
-					String msg = dis2.readUTF();
-					System.out.println(src + " says: " + msg);
+                DataInputStream dis2 = new DataInputStream(new ByteArrayInputStream(data));
+                int type = dis2.readInt();
 
-				} else if (type == TYPE_FILE) {
-					String filename = dis2.readUTF();
-					int size = dis2.readInt();
+                if (type == TYPE_TEXT) {
+                    String msg = dis2.readUTF();
 
-					byte[] fileBytes = new byte[size];
-					dis2.readFully(fileBytes);
+                    String fullMsg = src + " says: " + msg;
 
-					new File("downloads").mkdirs();
-					String path = "downloads/" + System.currentTimeMillis() + "_" + filename;
+                    // 👉 控制台输出
+                    System.out.println(fullMsg);
 
-					Files.write(Paths.get(path), fileBytes);
+                    // 👉 触发监听器
+                    if (messageListener != null) {
+                        messageListener.accept(fullMsg);
+                    }
 
-					System.out.println("File received: " + path);
-				}
-			}
-		} catch (Exception e) {
-			System.out.println("Connection closed");
-		}
-	}
+                } else if (type == TYPE_FILE) {
+                    String filename = dis2.readUTF();
+                    int size = dis2.readInt();
 
-	// ======================
-	// SEND
-	// ======================
+                    byte[] fileBytes = new byte[size];
+                    dis2.readFully(fileBytes);
 
-	public void sendPacket(int destId, byte[] data) throws IOException {
-		dos.writeInt(destId);
-		dos.writeInt(data.length);
-		dos.write(data);
-		dos.flush();
-	}
+                    new File("downloads").mkdirs();
+                    String path = "downloads/" + System.currentTimeMillis() + "_" + filename;
 
-	public void sendTextMessage(int destId, String msg) {
-		try {
-			ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			DataOutputStream dosLocal = new DataOutputStream(bos);
+                    Files.write(new File(path).toPath(), fileBytes);
 
-			dosLocal.writeInt(TYPE_TEXT);
-			dosLocal.writeUTF(msg);
+                    String info = "File received: " + path;
+                    System.out.println(info);
 
-			sendPacket(destId, bos.toByteArray());
+                    if (messageListener != null) {
+                        messageListener.accept(info);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Connection closed");
+        }
+    }
 
-			new MessageDAO().saveTextMessage(identifier, destId, msg);
+    // ======================
+    // SEND
+    // ======================
+    public void sendPacket(int destId, byte[] data) throws IOException {
+        dos.writeInt(destId);
+        dos.writeInt(data.length);
+        dos.write(data);
+        dos.flush();
+    }
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+    public void sendTextMessage(int destId, String msg) {
+        try {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            DataOutputStream dosLocal = new DataOutputStream(bos);
 
-	public void sendFileMessage(int destId, String path) {
-		try {
-			path = path.replace("\"", "");
+            dosLocal.writeInt(TYPE_TEXT);
+            dosLocal.writeUTF(msg);
 
-			File file = new File(path);
+            sendPacket(destId, bos.toByteArray());
 
-			if (!file.exists() || file.isDirectory()) {
-				System.out.println("Invalid file!");
-				return;
-			}
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
-			byte[] fileBytes = Files.readAllBytes(file.toPath());
+    public void sendFileMessage(int destId, String path) {
+        try {
+            File file = new File(path);
 
-			ByteArrayOutputStream bos = new ByteArrayOutputStream();
-			DataOutputStream dosLocal = new DataOutputStream(bos);
+            if (!file.exists() || file.isDirectory()) {
+                System.out.println("Invalid file!");
+                return;
+            }
 
-			dosLocal.writeInt(TYPE_FILE);
-			dosLocal.writeUTF(file.getName());
-			dosLocal.writeInt(fileBytes.length);
-			dosLocal.write(fileBytes);
+            byte[] fileBytes = Files.readAllBytes(file.toPath());
 
-			sendPacket(destId, bos.toByteArray());
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            DataOutputStream dosLocal = new DataOutputStream(bos);
 
-			new MessageDAO().saveFileMessage(identifier, destId, file.getName(), path);
+            dosLocal.writeInt(TYPE_FILE);
+            dosLocal.writeUTF(file.getName());
+            dosLocal.writeInt(fileBytes.length);
+            dosLocal.write(fileBytes);
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
+            sendPacket(destId, bos.toByteArray());
 
-	// ======================
-	// MAIN (USER INTERFACE)
-	// ======================
-
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 	public static void main(String[] args) {
 
-		DatabaseManager.initDatabase();
+    ClientMsg client = new ClientMsg("localhost", 1666);
+    client.startSession();
 
-		ClientMsg client = new ClientMsg("localhost", 1666);
-		client.startSession();
+    System.out.println("Your ID: " + client.getIdentifier());
 
-		System.out.println("Votre ID: " + client.identifier);
+    java.util.Scanner sc = new java.util.Scanner(System.in);
 
-		Scanner sc = new Scanner(System.in);
+    while (true) {
+        try {
+            System.out.println("\n=== MENU ===");
+            System.out.println("1. Send message");
+            System.out.println("2. Send file");
 
-		while (true) {
-			try {
-				System.out.println("\n=== MENU ===");
-				System.out.println("1. Send message");
-				System.out.println("2. Send file");
-				System.out.println("3. Show history");
+            int choice = Integer.parseInt(sc.nextLine());
 
-				int choice = Integer.parseInt(sc.nextLine());
+            if (choice == 1) {
+                System.out.println("Dest ID?");
+                int dest = Integer.parseInt(sc.nextLine());
 
-				if (choice == 1) {
-					System.out.println("Destinataire ?");
-					int dest = Integer.parseInt(sc.nextLine());
+                System.out.println("Message?");
+                String msg = sc.nextLine();
 
-					System.out.println("Message ?");
-					String msg = sc.nextLine();
+                client.sendTextMessage(dest, msg);
 
-					client.sendTextMessage(dest, msg);
+            } else if (choice == 2) {
+                System.out.println("Dest ID?");
+                int dest = Integer.parseInt(sc.nextLine());
 
-				} else if (choice == 2) {
-					System.out.println("Destinataire ?");
-					int dest = Integer.parseInt(sc.nextLine());
+                System.out.println("File path?");
+                String path = sc.nextLine();
 
-					System.out.println("File path ?");
-					String path = sc.nextLine();
+                client.sendFileMessage(dest, path);
+            }
 
-					client.sendFileMessage(dest, path);
-
-				} else if (choice == 3) {
-					new MessageDAO().showAllMessages();
-				}
-
-			} catch (Exception e) {
-				System.out.println("Erreur");
-			}
-		}
-	}
+        } catch (Exception e) {
+            System.out.println("Error");
+        }
+    }
+}
 }

@@ -1,73 +1,75 @@
-/*
- * Copyright (c) 2026.  Jerome David. Univ. Grenoble Alpes.
- * This file is part of DcissChatService.
- *
- * DcissChatService is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- *
- * DcissChatService is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with Foobar. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package fr.uga.miashs.dciss.chatservice.common.db;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class DatabaseManager {
 
     private static final String URL = "jdbc:sqlite:chat.db";
 
+    // 获取连接
     public static Connection getConnection() throws SQLException {
-        try {
-            Class.forName("org.sqlite.JDBC"); // important!!
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return DriverManager.getConnection("jdbc:sqlite:chat.db");
+        return DriverManager.getConnection(URL);
     }
 
+    // 初始化数据库
     public static void initDatabase() {
+
+        String createMessagesTable =
+                "CREATE TABLE IF NOT EXISTS messages (" +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                        "sender_id INTEGER, " +
+                        "receiver_id INTEGER, " +
+                        "content TEXT, " +
+                        "type TEXT, " +
+                        "created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
+                        ");";
+
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
 
-            String messagesTable =
-                    "CREATE TABLE IF NOT EXISTS messages (" +
-                            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                            "sender_id INTEGER, " +
-                            "receiver_id INTEGER, " +
-                            "content TEXT, " +
-                            "type TEXT, " +
-                            "file_path TEXT, " +
-                            "filename TEXT, " +
-                            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
-                            ");";
+            stmt.execute(createMessagesTable);
+            System.out.println("Database initialized ✅");
 
-            String filesTable =
-                    "CREATE TABLE IF NOT EXISTS files (" +
-                            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                            "sender_id INTEGER, " +
-                            "receiver_id INTEGER, " +
-                            "filename TEXT, " +
-                            "file_path TEXT, " +
-                            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
-                            ");";
-
-            stmt.execute(messagesTable);
-            stmt.execute(filesTable);
-
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-    public void showAllMessages() {
 
-        String sql = "SELECT sender_id, receiver_id, content, created_at FROM messages";
+    // 保存消息
+    public static void saveMessage(int sender, int receiver, String content, String type) {
 
-        try (Connection conn = DatabaseManager.getConnection();
+        String sql = "INSERT INTO messages (sender_id, receiver_id, content, type) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, sender);
+            ps.setInt(2, receiver);
+            ps.setString(3, content);
+            ps.setString(4, type);
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // 查看所有消息
+    public static void showAllMessages() {
+
+        String sql = "SELECT sender_id, receiver_id, content, created_at FROM messages ORDER BY created_at ASC";
+
+        try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
-            System.out.println("===== CHAT HISTORY =====");
+            System.out.println("\n===== CHAT HISTORY =====");
 
             while (rs.next()) {
                 int sender = rs.getInt("sender_id");
@@ -78,7 +80,7 @@ public class DatabaseManager {
                 System.out.println("[" + time + "] " + sender + " -> " + receiver + " : " + content);
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
     }
