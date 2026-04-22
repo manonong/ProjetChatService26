@@ -50,7 +50,7 @@ public class ServerMsg {
 
 	private void initDatabase() {
 		try {
-			cnx = DriverManager.getConnection("jdbc:derby:target/chatDB;create=true");
+			cnx = DriverManager.getConnection("jdbc:derby:target/chatDB;create=true"); // Crée la base de données si elle n'existe pas
 
 			Statement stmt = cnx.createStatement();
 
@@ -83,7 +83,7 @@ public class ServerMsg {
 		try {
 			PreparedStatement pstmt = cnx.prepareStatement(
 					"INSERT INTO Groups (groupId, ownerId) VALUES (?, ?)");
-			pstmt.setInt(1, groupId);
+			pstmt.setInt(1, groupId); 
 			pstmt.setInt(2, ownerId);
 			pstmt.executeUpdate();
 			pstmt.close();
