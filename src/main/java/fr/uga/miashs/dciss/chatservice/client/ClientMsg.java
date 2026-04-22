@@ -14,6 +14,11 @@ package fr.uga.miashs.dciss.chatservice.client;
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;	//new
+import java.sql.ResultSet;			//new
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -33,14 +38,16 @@ public class ClientMsg {
 	private String serverAddress;
 	private int serverPort;
 
-	private Socket s;
-	private DataOutputStream dos;
-	private DataInputStream dis;
+	private Socket s;					// Socket de l'utlisateur (est null == jamais connecté OU session fermée)
+	private DataOutputStream dos;		//DOS est pour les flux SORTANT
+	private DataInputStream dis;		// DIS est pour les flux ENTRANT
 
-	private int identifier;
+	private int identifier;				//Identifiant de l'utlisateur (est 0 == jamais connecté)
 
 	private List<MessageListener> mListeners;
 	private List<ConnectionListener> cListeners;
+
+
 
 	/**
 	 * Create a client with an existing id, that will connect to the server at the
@@ -50,6 +57,7 @@ public class ClientMsg {
 	 * @param address The server address or hostname
 	 * @param port    The port number
 	 */
+
 	public ClientMsg(int id, String address, int port) {
 		if (id < 0)
 			throw new IllegalArgumentException("id must not be less than 0");
@@ -62,6 +70,8 @@ public class ClientMsg {
 		cListeners = new ArrayList<>();
 	}
 
+
+
 	/**
 	 * Create a client without id, the server will provide an id during the the
 	 * session start
@@ -72,6 +82,8 @@ public class ClientMsg {
 	public ClientMsg(String address, int port) {
 		this(0, address, port);
 	}
+
+
 
 	/**
 	 * Register a MessageListener to the client. It will be notified each time a
@@ -87,6 +99,8 @@ public class ClientMsg {
 		mListeners.forEach(x -> x.messageReceived(p));
 	}
 	
+
+
 	/**
 	 * Register a ConnectionListener to the client. It will be notified if the connection  start or ends.
 	 * 
@@ -101,9 +115,44 @@ public class ClientMsg {
 	}
 
 
-	public int getIdentifier() {
+
+	public int getIdentifier() {		// Récupère l'id en mémoire de l'objet d'instance
 		return identifier;
 	}
+
+
+	private int chargerIdLocal(){		// Récupère l'id de l'utilisateur dans la base de données (codé pour SQL)
+    	try {
+			Connection cnx = DriverManager.getConnection("jdbc:sqlite:client.db");		//*******POTENTIELLEMENT À CHANGER LE CHEMIN --VOIR SELON LA BDD***********//
+			cnx.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS Session (userId INTEGER PRIMARY KEY)");
+        
+			ResultSet res = cnx.createStatement().executeQuery("SELECT userId FROM Session");
+			if (res.next()) return res.getInt(1);
+
+    	} catch (SQLException e) {
+			// TODO chargerIdLocal exception
+        	e.printStackTrace();
+    	}
+			return 0;
+	}
+
+	private void sauvegarderIdLocal(int id){
+    	try {
+		Connection cnx = DriverManager.getConnection("jdbc:sqlite:client.db");
+        cnx.createStatement().executeUpdate("CREATE TABLE IF NOT EXISTS Session (userId INTEGER PRIMARY KEY)");
+
+        PreparedStatement ps = cnx.prepareStatement("INSERT OR REPLACE INTO Session VALUES (?)");
+        ps.setInt(1, id);	// -- Paramètre la requête SQL 		// paramètre 1 : indique quel ? il faut remplacer dans la requête SQL / paramètre 2 : par quoi il faut le remplacer
+        ps.executeUpdate();	// -- Mise en jour de la requête
+
+    	} catch (SQLException e) {
+			// TODO sauvegarderIdLocal exception
+        	e.printStackTrace();
+    	}
+	}
+
+	
+
 
 	/**
 	 * Method to be called to establish the connection.
@@ -112,26 +161,39 @@ public class ClientMsg {
 	 * @throws IOException
 	 */
 	public void startSession() throws UnknownHostException {
-		if (s == null || s.isClosed()) {
+		if (s == null || s.isClosed()) {	
+		//Sécurité pour ne pas ouvrir plusieurs sockets vers le serveur pour un même utilisateur
+
 			try {
-				s = new Socket(serverAddress, serverPort);
-				dos = new DataOutputStream(s.getOutputStream());
-				dis = new DataInputStream(s.getInputStream());
-				dos.writeInt(identifier);
+				s = new Socket(serverAddress, serverPort); 			// Créer la connection réseau (TCP) entre deux machines -- Classe Java "Socket" --
+				dos = new DataOutputStream(s.getOutputStream());	// Prépare l'envoi -- DataOutputStream est un wrapper (permet utiliser dos.writeInt(), write(bytes), writeUTF("string") ) --
+				dis = new DataInputStream(s.getInputStream());		// Prépare la réception -- DataInputStream est un wrapper (permet utliser dis.readInt(), readFully(bytes), readUTF("string") )
+			//DOS est pour les flux SORTANT // DIS est pour les flux ENTRANT
+
+				identifier = chargerIdLocal(); 		// Récupère l'id si il existe déjà
+
+				dos.writeInt(identifier);	// 
 				dos.flush();
-				if (identifier == 0) {
+
+				if (identifier == 0 ) { 		// -- 0 car un int Nao//
 					identifier = dis.readInt();
+					sauvegarderIdLocal(identifier);		// Sauvegarde l'id si nouveau
 				}
+
 				// start the receive loop
 				new Thread(() -> receiveLoop()).start();
 				notifyConnectionListeners(true);
 			} catch (IOException e) {
-				e.printStackTrace();
+				//e.printStackTrace();
 				// error, close session
 				closeSession();
 			}
 		}
 	}
+
+
+
+
 
 	/**
 	 * Send a packet to the specified destination (etiher a userId or groupId)
@@ -154,6 +216,8 @@ public class ClientMsg {
 		
 	}
 
+
+
 	/**
 	 * Start the receive loop. Has to be called only once.
 	 */
@@ -175,6 +239,8 @@ public class ClientMsg {
 		closeSession();
 	}
 
+
+
 	public void closeSession() {
 		try {
 			if (s != null)
@@ -185,6 +251,11 @@ public class ClientMsg {
 		notifyConnectionListeners(false);
 	}
 
+
+
+
+
+//--- LE MAIN POUR LES TESTS -------------------------------------
 	public static void main(String[] args) throws UnknownHostException, IOException, InterruptedException {
 		ClientMsg c = new ClientMsg("localhost", 1666);
 
@@ -409,6 +480,10 @@ public class ClientMsg {
 			}
 
 		}
+
+		//permet à un user de créer un groupe
+		//TODO 
+
 
 		/*
 		 * int id =1+(c.getIdentifier()-1) % 2; System.out.println("send to "+id);
