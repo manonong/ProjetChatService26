@@ -67,6 +67,7 @@ public class UserMsg implements PacketProcessor{
 	}
 	
 	
+
 	/*
 	 * METHODS FOR MANAING THE CONNECTION
 	 */
@@ -115,41 +116,70 @@ public class UserMsg implements PacketProcessor{
 		close();
 	}
 	
-	// boucle d'envoi
-	public void sendLoop() {
-		Packet p = null;
-		try {
-			DataOutputStream dos = new DataOutputStream(s.getOutputStream());
-			// tant que la connexion n'est pas terminée
-			while (active && s.isConnected()) {
-				// on récupère un message à envoyer dans la file
-				// sinon on attend, car la méthode take est "bloquante" tant que la file est vide
-				p = sendQueue.take();
-				// on envoie le paquet au client
-				dos.writeInt(p.srcId);
-				dos.writeInt(p.destId);
-				dos.writeInt(p.data.length);
-				dos.write(p.data);
-				dos.flush();
-				
-			}
-		} catch (IOException e) {
-			// remet le paquet dans la file si pb de transmission (connexion terminée)
-			if (p!=null) sendQueue.offer(p);
-			LOG.warning("Connection with client "+userId+" is broken...close it.");
-			//e.printStackTrace();
-		} catch (InterruptedException e) {
-			throw new ServerException("Sending loop thread of "+userId+" has been interrupted.",e);
-		}
-		close();
-	}
+
+ //boucle d'envoi des messages vers le client
+public void sendLoop() {
+    Packet p = null;
+
+    try {
+        // Création du flux de sortie vers le socket client
+        DataOutputStream dos = new DataOutputStream(s.getOutputStream());
+
+        // tant que la connexion n'est pas terminée
+        while (active && s.isConnected()) {
+			// on récupère un message à envoyer dans la file
+            // sinon on attend, car la méthode take est "bloquante" tant que la file est vide
+            p = sendQueue.take();
+
+            // on envoie le paquet au client
+            dos.writeInt(p.srcId);
+
+            // écriture de l'identifiant du destinataire
+            dos.writeInt(p.destId);
+
+            // écriture de la taille des données
+            dos.writeInt(p.data.length);
+
+            // écriture des données du message
+            dos.write(p.data);
+
+            // forçage de l'envoi immédiat des données
+            dos.flush();
+        }
+
+    } catch (IOException e) {
+		// remet le paquet dans la file si pb de transmission (connexion terminée)
+        // En cas d'erreur, on remet le paquet dans la file si possible
+        if (p != null) sendQueue.offer(p);
+
+        // Log de la déconnexion ou erreur réseau
+        LOG.warning("Connection with client "+userId+" is broken...close it.");
+
+    } catch (InterruptedException e) {
+
+        // Exception si le thread est interrompu brutalement
+        throw new ServerException("Sending loop thread of "+userId+" has been interrupted.", e);
+    }
+    // Fermeture de la connexion
+    close();
+}
 	
+
+
+
 	/**
-	 * Method for adding a packet to the sending queue
-	 */
-	// cette méthode est généralement appelée par ServerMsg
-	public void process(Packet p) {
-		sendQueue.offer(p);
+     * Method for adding a packet to the sending queue
+     */
+    // cette méthode est généralement appelée par ServerMsg
+    public void process(Packet p) {
+        // Vérifie que le paquet n'est pas nul pour éviter des erreurs
+        if (p != null) {
+            // Ajoute le paquet dans la file d'envoi
+            // (il sera traité plus tard par le thread d'envoi)
+            sendQueue.offer(p);
+    	}
+    
 	}
+
 	
 }
